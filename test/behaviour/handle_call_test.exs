@@ -11,36 +11,34 @@ defmodule DhcpTest.Behaviour.HandleCallTest do
     defmodule BasicCall do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
 
-      @impl true
-      def handle_call(any, _from, pid) do
-        send(pid, {:recv, any})
-        {:reply, :foo, pid}
+      CommonDhcp.setup
+      def handle_call(any, _from, test_pid) do
+        send(test_pid, {:recv, any})
+        {:reply, :foo, test_pid}
       end
     end
 
     test "handle_call is called, and correctly responds" do
-      {:ok, pid} = BasicCall.start_link()
-      assert :foo == GenServer.call(pid, :bar)
+      conn = BasicCall.connect()
+      assert :foo == GenServer.call(conn.server, :bar)
       assert_receive {:recv, :bar}
     end
 
     defmodule ChgCall do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
 
-      @impl true
+      CommonDhcp.setup
       def handle_call({:chg, any}, _from, old_state) do
         {:reply, old_state, any}
       end
     end
 
     test "changes to the state are respected" do
-      {:ok, pid} = ChgCall.start_link()
-      GenServer.call(pid, {:chg, :foo})
-      assert :foo == GenServer.call(pid, {:chg, :bar})
+      conn = ChgCall.connect()
+      GenServer.call(conn.server, {:chg, :foo})
+      assert :foo == GenServer.call(conn.server, {:chg, :bar})
     end
 
   end

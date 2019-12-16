@@ -1,33 +1,47 @@
 defmodule ExDhcp.Packet do
 
   @moduledoc """
-  provides a structure for the DHCP packet, according to the spec.
+  Provides a structure for the DHCP UDP packet, according to _[RFC 1531](https://tools.ietf.org/html/rfc1531)_ specifications.
+  For a simpler reference on the DHCP protocol's binary layout, refer to
+  [Wikipedia](https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol).
 
-  (http://en.wikipedia.org/wiki/DHCP)
 
-  the fields are as follows:
 
-  -  op:  operation (request: 1, response: 2).  This operation value allows DHCP providers
-  to coexist with other DHCP providers.  Since DHCP packets are broadcast to 255.255.255.255,
-  without this feature, they might be
+  - **OP**:  operation (request: 1, response: 2).  ExDhcp will *only* respond to
+    requests (except in handle_packet) and *only* send response packets.
 
-  - htype: specifies the hardware address type.  Currently ony ethernet is supported.
-  - hlen:  specifies the hardware address length.  Currently only 6-byte MAC is supported.
-  - hops:
-  - xid:   transmission id.  Allows multiple DHCP requests to be serviced concurrently.  In
-  this library, separate servers will be spawned to handle different transmissions.
-  - secs:
-  - flags:
-  - ciaddr: "current internet address"
-  - yiaddr: "your internet address"
-  - siaddr: "server internet address"
-  - giaddr: "gateway internet address
-  - options: {integer, tuple} list.  Supported opcodes will be translated
-  into {atom, value} pairs.
+  - **HTYPE**: specifies the hardware address type.  Currently only ethernet is supported.
+
+  - **HLEN**: specifies the hardware address length.  Currently only 6-byte MAC is supported.
+
+  - **HOPS**: number of hops.  For when you implement 'relay-DHCP' (see
+  _[RFC 1531: BOOTP relay agent](https://tools.ietf.org/html/rfc1531#section-1.4)_).
+
+
+  - **XID**: transaction id.  Allows concurrent servicing of multiple DHCP requests.  You may want to
+  implement spawning of separate servers to handle different transmissions.
+
+  - **SECS**: seconds since client has booted.
+
+  - **FLAGS**: DHCP flags (see _[RFC 1531: figure 2](https://tools.ietf.org/html/rfc1531#page-10)_).
+
+  - **CIADDR**: "_**client**_ internet address" (expected in `:request` requests).
+
+  - **YIADDR**: "_**your**_ (client) internet address" (expected in `:offer` responses)
+
+  - **SIADDR**: "next _**server**_ internet address" (expected in some `:offer`, `:ack`, and `:nak` responses)
+
+  - **GIADDR**: "_**gateway**_ internet address".  For when you implement 'relay-DHCP' (see
+  _[RFC 1531: BOOTP relay agent](https://tools.ietf.org/html/rfc1531#section-1.4)_).
+
+  - **options**: a `{integer, binary}` tuple list.  Supported opcodes will be translated
+  into `{atom, value}` tuples by `ExDhcp.Options` parser modules (see `ExDhcp.Options.Macro`).
+
+  _Learn more about RFC 1531 here: [ietf.org](https://tools.ietf.org/html/rfc1531)_
   """
 
-  alias ExDhcp.BasicOptions
   alias ExDhcp.Options
+  alias ExDhcp.Options.Basic
   alias ExDhcp.Utils
 
   @magic_cookie   <<0x63, 0x82, 0x53, 0x63>>
@@ -49,10 +63,13 @@ defmodule ExDhcp.Packet do
             chaddr: {0, 0, 0, 0, 0, 0},
             options: []
 
-  @type option :: {non_neg_integer, binary} | {atom, any}
+  @typedoc """
+  The Packet struct type.
 
-  @type t(v)::%__MODULE__{
-    op:      v,
+  See `ExDhcp.Packet` for details on the struct parameters.
+  """
+  @type t::%__MODULE__{
+    op:      1 | 2,
     htype:   1,
     hlen:    6,
     hops:    non_neg_integer,
@@ -70,36 +87,36 @@ defmodule ExDhcp.Packet do
     }
   }
 
-  @type t::t(1) | t(2)
-
-  @type request ::t(1)
-  @type response::t(2)
-
   @typedoc """
-  erlang's internal representation of an active udp packet.
+  Erlang's internal representation of an active UDP packet.
   """
   @type udp_packet :: {
     :udp,
     :gen_udp.socket,
-    ExDhcp.ip4,
+    Utils.ip4,
     :inet.ancillary_data,
     binary}
 
-  @bootp_octets 192 * 8
+  @bootp_octets 192
 
   @doc """
-  pass the contents of a udp packet
+  Converts a udp packet or a binary payload from a UDP packet and converts
+  it to a `ExDhcp.Packet` struct.
+
+  NB: This function will fail if you attempt to pass it a UDP packet that does
+  not contain the DHCP "magic cookie".
   """
-  @spec decode(udp_packet | binary, [module]) :: t | udp_packet
-  def decode(udp_packet, option_parsers \\ [BasicOptions])
-  def decode({:udp, _, _, _, binary = <<_::1888>> <> @magic_cookie <> _}, option_parsers) do
+  @spec decode(udp_packet | binary, [module]) :: t
+  def decode(udp_packet, option_parsers \\ [Basic])
+  def decode({:udp, _, _, _, binary}, option_parsers) do
     decode(binary, option_parsers)
   end
   def decode(
         <<op, htype, @hlen_macaddr, hops, xid::size(32), secs::size(16),
           flags::size(16), ciaddr::binary-size(4), yiaddr::binary-size(4),
           siaddr::binary-size(4), giaddr::binary-size(4), chaddr::binary-size(6),
-          0::80, 0::@bootp_octets, @magic_cookie>> <> options,
+          _::binary-size(10), _::binary-size(@bootp_octets),
+          @magic_cookie::binary, options::binary>>,
           option_parsers) do
 
     %__MODULE__{
@@ -119,10 +136,15 @@ defmodule ExDhcp.Packet do
   end
 
   @doc """
-  Encode a message so that it can be put in a UDP packet
+  Converts from a `ExDhcp.Packet` struct into an [`iolist()`](https://hexdocs.pm/elixir/typespecs.html#built-in-types).
+
+  Typically, this will be sent directly to a `:gen_udp.send/2` call.  If
+  you need to examine the contents of the
+  [`iolist()`](https://hexdocs.pm/elixir/typespecs.html#built-in-types)
+  as a binary, you may want to send the results to `:erlang.iolist_to_binary/1`
   """
   @spec encode(t) :: iolist
-  def encode(message, modules \\ [BasicOptions]) do
+  def encode(message, modules \\ [Basic]) do
     options = Options.encode(message.options, modules)
     ciaddr = Utils.ip2bin(message.ciaddr)
     yiaddr = Utils.ip2bin(message.yiaddr)
@@ -132,7 +154,7 @@ defmodule ExDhcp.Packet do
 
     [message.op, message.htype, message.hlen, message.hops, <<message.xid::32>>,
      <<message.secs::16>>, <<message.flags::16>>, ciaddr, yiaddr, siaddr, giaddr,
-     chaddr, <<0::80>>, <<0::@bootp_octets>>, @magic_cookie | options]
+     chaddr, <<0::80>>, <<0::@bootp_octets * 8>>, @magic_cookie | options]
   end
 
   @builtin_options [:op, :htype, :hlen, :hops, :xid, :secs, :flags,
@@ -148,12 +170,41 @@ defmodule ExDhcp.Packet do
                  release:  <<7>>,
                  inform:   <<8>>}
 
-  def respond(packet = %__MODULE__{}, type, opts) do
-    builtins = opts
+  @spec respond(t, :offer | :ack | :nak, keyword) :: t
+  @doc """
+  A convenience function used to craft a DHCP response based on the request.
+
+  ### Usage
+
+  `type` should be one of `[:offer, :ack, :nak]`.
+
+  - The built-in values are copied into the response without change.
+  - The DHCP opcode is automatically set to _2_.
+  - The options list is stripped.
+
+  `params` should be a *flat* keyword list containing DHCP parameters and options.
+
+  All of the options keys should be encodable by exactly one of your options parsing modules.
+
+  If you need to encode a value directly as an integer/binary pair because it's not parsed by
+  any modules, _**do not** use_ `respond/3`.
+
+  ### Example
+
+  ```elixir
+  iex> ExDhcp.Packet.respond(%ExDhcp.Packet{}, :offer, yiaddr: {192, 168, 0, 5}, hostname: "foo")
+  %ExDhcp.Packet{yiaddr: {192, 168, 0, 5}, options: %{53 => <<2>>, hostname: "foo"}}
+  ```
+
+  Note that in the example `:yiaddr` entered the packet struct, and `:hostname` entered the
+  `:options` parameter.
+  """
+  def respond(packet = %__MODULE__{}, type, params) do
+    builtins = params
     |> Keyword.take(@builtin_options)
     |> Enum.into(%{op: 2})
 
-    extras = opts
+    extras = params
     |> Keyword.drop(@builtin_options)
     |> Enum.into(%{@message_type => @message_map[type]})
 

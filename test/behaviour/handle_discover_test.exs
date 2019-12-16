@@ -17,22 +17,20 @@ defmodule DhcpTest.Behaviour.HandleDiscoverTest do
   }
 
   defmodule DiscSrvNoRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
+    CommonDhcp.setup
 
-    def init(test_pid), do: {:ok, test_pid}
     def handle_discover(pack, xid, chaddr, test_pid) do
       send(test_pid, {:discover, xid, pack, chaddr})
       {:norespond, :new_state}
     end
-    def handle_decline(_, _, _, _), do: :error
-    def handle_request(_, _, _, _), do: :error
   end
 
   test "a dhcp discover message gets sent to handle_discover" do
-    DiscSrvNoRespond.start_link(self(), port: 6721)
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    disc_pack = Packet.encode(@dhcp_discover)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6721, disc_pack)
+    conn = DiscSrvNoRespond.connect
+    DiscSrvNoRespond.send_packet(conn, @dhcp_discover)
+
     assert_receive {:discover, xid, pack, chaddr}
     assert pack == @dhcp_discover
     assert xid == @dhcp_discover.xid
@@ -40,46 +38,39 @@ defmodule DhcpTest.Behaviour.HandleDiscoverTest do
   end
 
   defmodule DiscSrvRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
+    CommonDhcp.setup
 
-    def init(test_pid), do: {:ok, test_pid}
     def handle_discover(pack, _, _, _) do
       # for simplicity, just send back the same packet.
       {:respond, pack, :new_state}
     end
-    def handle_decline(_, _, _, _), do: :error
-    def handle_request(_, _, _, _), do: :error
   end
 
-  @localhost {127, 0, 0, 1}
   test "a dhcp discover message can respond to the caller" do
-    DiscSrvRespond.start_link(self(), port: 6722, client_port: 6723, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6723, [:binary, active: true])
-
-    disc_pack = Packet.encode(@dhcp_discover)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6722, disc_pack)
+    conn = DiscSrvRespond.connect()
+    DiscSrvRespond.send_packet(conn, @dhcp_discover)
 
     assert_receive {:udp, _, _, _, binary}
     assert @dhcp_discover == Packet.decode(binary)
   end
 
   defmodule DiscParserlessSrv do
-    use ExDhcp, dhcp_options: []
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
+    CommonDhcp.setup dhcp_options: []
 
-    def init(test_pid), do: {:ok, test_pid}
     def handle_discover(pack, xid, chaddr, test_pid) do
       send(test_pid, {:discover, xid, pack, chaddr})
       {:respond, pack, :new_state}
     end
-    def handle_decline(_, _, _, _), do: :error
-    def handle_request(_, _, _, _), do: :error
   end
 
   test "dhcp will respond to discover without options parsers" do
-    DiscParserlessSrv.start_link(self(), port: 6724, client_port: 6725, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6725, [:binary, active: true])
-    disc_pack = Packet.encode(@dhcp_discover)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6724, disc_pack)
+    conn = DiscParserlessSrv.connect()
+    DiscParserlessSrv.send_packet(conn, @dhcp_discover)
+
     assert_receive {:discover, xid, pack, chaddr}
     # make sure that the inner contents are truly unencoded.
     assert %{50 => <<192, 168, 1, 100>>, 53 => <<1>>, 55 => <<1, 3, 15, 6>>}

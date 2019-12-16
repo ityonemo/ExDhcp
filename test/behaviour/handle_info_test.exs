@@ -6,12 +6,14 @@ defmodule DhcpTest.Behaviour.HandleInfoTest do
 
   @moduletag [handle_info: true, behaviour: true]
 
+  @localhost {127, 0, 0, 1}
+
   describe "when overriding handle_info" do
 
     defmodule NonUdp do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
+      CommonDhcp.setup
 
       @impl true
       def handle_info(any, pid) do
@@ -21,15 +23,15 @@ defmodule DhcpTest.Behaviour.HandleInfoTest do
     end
 
     test "we can trap non-udp packets" do
-      {:ok, pid} = NonUdp.start_link()
-      send(pid, :ping)
+      conn = NonUdp.connect()
+      send(conn.server, :ping)
       assert_receive {:recv, :ping}
     end
 
     defmodule YesUdp do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(32621)
+      CommonDhcp.setup
 
       @impl true
       def handle_info({:udp, _, _, _, data}, pid) do
@@ -39,22 +41,21 @@ defmodule DhcpTest.Behaviour.HandleInfoTest do
     end
 
     test "we can trap a udp packet forwarded" do
-      {:ok, pid} = YesUdp.start_link()
-      send(pid, {:udp, nil, nil, nil, "test"})
+      conn = YesUdp.connect()
+      send(conn.server, {:udp, nil, nil, nil, "test"})
       assert_receive {:recv, "test"}
     end
 
     test "we can trap a generic udp message" do
-      {:ok, _} = YesUdp.start_link()
-      {:ok, sock} = :gen_udp.open(0)
-      :gen_udp.send(sock, {127, 0, 0, 1}, 32621, "test")
+      conn = YesUdp.connect()
+      :gen_udp.send(conn.client_sock, @localhost, conn.server_port, "test")
       assert_receive {:recv, "test"}
     end
 
     defmodule ChgUdp do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
+      CommonDhcp.setup
 
       @impl true
       def handle_info({:chg, from, new}, old) do
@@ -64,10 +65,10 @@ defmodule DhcpTest.Behaviour.HandleInfoTest do
     end
 
     test "changes to the state are respected" do
-      {:ok, pid} = ChgUdp.start_link()
-      send(pid, {:chg, self(), :foo})
+      conn = ChgUdp.connect()
+      send(conn.server, {:chg, self(), :foo})
       assert_receive {:old_state, _}
-      send(pid, {:chg, self(), :bar})
+      send(conn.server, {:chg, self(), :bar})
       assert_receive {:old_state, :foo}
     end
 

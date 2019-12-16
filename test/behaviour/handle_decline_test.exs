@@ -13,22 +13,21 @@ defmodule DhcpTest.Behaviour.HandleDeclineTest do
   }
 
   defmodule DeclSrvNoRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
+    CommonDhcp.setup
+
     def handle_decline(pack, xid, chaddr, test_pid) do
       send(test_pid, {:decline, xid, pack, chaddr})
       {:norespond, :new_state}
     end
-    def handle_request(_, _, _, _), do: :error
   end
 
   test "a dhcp decline message gets sent to handle_decline" do
-    DeclSrvNoRespond.start_link(self(), port: 6710)
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    disc_pack = Packet.encode(@dhcp_decline)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6710, disc_pack)
+    conn = DeclSrvNoRespond.connect()
+    DeclSrvNoRespond.send_packet(conn, @dhcp_decline)
+
     assert_receive {:decline, xid, pack, chaddr}
     assert pack == @dhcp_decline
     assert xid == @dhcp_decline.xid
@@ -36,45 +35,39 @@ defmodule DhcpTest.Behaviour.HandleDeclineTest do
   end
 
   defmodule DeclSrvRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
+    CommonDhcp.setup
+
     def handle_decline(pack, _, _, _) do
       # just reflect the packet, for simplicity.
       {:respond, pack, :new_state}
     end
-    def handle_request(_, _, _, _), do: :error
   end
 
-  @localhost {127, 0, 0, 1}
   test "a dhcp decline message can respond to the caller" do
-    DeclSrvRespond.start_link(self(), port: 6711, client_port: 6712, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6712, [:binary, active: true])
-
-    disc_pack = Packet.encode(@dhcp_decline)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6711, disc_pack)
+    conn = DeclSrvRespond.connect()
+    DeclSrvRespond.send_packet(conn, @dhcp_decline)
 
     assert_receive({:udp, _, _, _, binary})
   end
 
   defmodule DeclParserlessSrv do
-    use ExDhcp, dhcp_options: []
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
+    CommonDhcp.setup dhcp_options: []
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
     def handle_decline(pack, xid, chaddr, test_pid) do
       send(test_pid, {:decline, xid, pack, chaddr})
       {:respond, pack, :new_state}
     end
-    def handle_request(_, _, _, _), do: :error
   end
 
   test "dhcp will respond to decline without options parsers" do
-    DeclParserlessSrv.start_link(self(), port: 6713, client_port: 6714, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6714, [:binary, active: true])
-    disc_pack = Packet.encode(@dhcp_decline)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6713, disc_pack)
+    conn = DeclParserlessSrv.connect()
+    DeclParserlessSrv.send_packet(conn, @dhcp_decline)
+
     assert_receive {:decline, xid, pack, chaddr}
     # make sure that the inner contents are truly unencoded.
     assert %{55 => <<1, 3, 15, 6>>, 53 => <<4>>}

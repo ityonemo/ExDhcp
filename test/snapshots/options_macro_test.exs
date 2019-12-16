@@ -1,14 +1,14 @@
-defmodule DhcpTest.OptionsMacroTest do
+defmodule DhcpTest.Options.MacroTest do
 
   #
-  #  snapshot testing against ExDhcp.OptionsMacro to make sure
+  #  snapshot testing against ExDhcp.Options.OptionsMacro to make sure
   #  that it gives you the expected code.
   #
 
-  alias ExDhcp.OptionsMacro
+  alias ExDhcp.Options.Macro, as: OptionsMacro
   use ExUnit.Case
 
-  @moduletag :macro_snapshot
+  @moduletag :OptionsMacro_snapshot
 
   def reformat(code) do
     code
@@ -55,7 +55,7 @@ defmodule DhcpTest.OptionsMacroTest do
     test "encode_atom generates the correct function" do
       assert_code """
       def(encode({:local, value})) do
-        Options.encode_string(@local, DhcpTest.OptionsMacroTest.encode_local(value))
+        Options.encode_string(@local, DhcpTest.Options.MacroTest.encode_local(value))
       end
       """, OptionsMacro.encode_atom({:local, :local}, __MODULE__)
     end
@@ -66,7 +66,7 @@ defmodule DhcpTest.OptionsMacroTest do
         <<@local, :erlang.size(binary)>> <> binary
       end
       def(encode({@local, value})) do
-        Options.encode_string(@local, DhcpTest.OptionsMacroTest.encode_local(value))
+        Options.encode_string(@local, DhcpTest.Options.MacroTest.encode_local(value))
       end
       """, OptionsMacro.encode_atval({:local, :local}, __MODULE__)
     end
@@ -74,7 +74,7 @@ defmodule DhcpTest.OptionsMacroTest do
     test "decode generates the correct function" do
       assert_code """
       def(decode({@local, value})) do
-        {:local, DhcpTest.OptionsMacroTest.decode_local(value)}
+        {:local, DhcpTest.Options.MacroTest.decode_local(value)}
       end
       """, OptionsMacro.decode({:local, :local}, __MODULE__)
     end

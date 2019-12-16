@@ -39,22 +39,38 @@ defmodule ExDhcp.Options do
   @doc """
   Encode the specified list of options to a binary for a DHCP packet.
   """
-  @spec encode(Keyword.t | Map.t, [module]) :: iolist
+  @spec encode(keyword | map, [module]) :: iolist
   def encode(options, []), do: encode(options)
   def encode(options, [parser | rest]) do
     options
+    |> Stream.reject(fn
+      {_key, value} -> is_nil(value)
+      _ -> false
+    end)
     |> Stream.map(&parser.encode/1)
     |> encode(rest)
   end
   @spec encode(Enumerable.t) :: iolist
   def encode(options) do
-    [Enum.filter(options, &is_binary/1) | <<@option_finish>>]
+    [options
+     |> Enum.map(&encode_fragment/1)
+     |> Enum.sort | <<@option_finish>>]
   end
+
+  defp encode_fragment(binary) when is_binary(binary), do: binary
+  defp encode_fragment({type, binary}) when is_integer(type) and is_binary(binary) do
+    [<<type, :erlang.size(binary)>>, binary]
+  end
+  defp encode_fragment(_), do: ""
 
   #codec functions.
 
+  # NB: sometimes DHCP clients will send a short instead of an integer.
+  # For example, "max_message_size" is a commonly requested parameter.
   @spec decode_integer(binary) :: integer
   def decode_integer(<<a::32>>), do: a
+  def decode_integer(<<a::16>>), do: a
+  def decode_integer(<<a::8>>), do: a
   @spec encode_integer(typecode, integer) :: binary
   def encode_integer(type, a) when is_integer(a), do: <<type, 4, a::32>>
 
@@ -100,98 +116,4 @@ defmodule ExDhcp.Options do
   def encode_boolean(type, false), do: <<type, 1, 0>>
   def encode_boolean(type, value), do: <<type, 1, value>>
 
-  @spec decode_uuid(binary) :: String.t
-  def decode_uuid(val), do: UUID.binary_to_string!(val)
-  @spec encode_uuid(typecode, String.t) :: binary
-  def encode_uuid(type, val) when :erlang.size(val) == 36 do
-    encode_string(type, UUID.string_to_binary!(val))
-  end
-  def encode_uuid(type, val) when :erlang.size(val) == 16 do
-    encode_string(type, val)
-  end
-end
-
-defmodule ExDhcp.OptionsApi do
-  alias ExDhcp.Options
-
-  @callback decode({Options.typecode, binary}) :: {atom, term} | {Options.typecode, binary}
-  @callback decode({atom, term})               :: {atom, term}
-  @callback encode({atom, term})               :: {atom, term} | binary
-  @callback encode({Options.typecode, binary}) :: {Options.typecode, binary}
-end
-
-defmodule ExDhcp.OptionsMacro do
-
-  @options_encodable [:ip, :iplist, :string, :uuid, :integer, :short, :byte, :boolean]
-
-  defp encode_fn(at_form, style, _) when style in @options_encodable do
-    quote do Options.unquote(:"encode_#{style}")(unquote(at_form), value) end
-  end
-  defp encode_fn(at_form, style, context) do
-    quote do
-      Options.encode_string(
-        unquote(at_form),
-        unquote(context).unquote(:"encode_#{style}")(value))
-    end
-  end
-
-  defp decode_fn(style, _context) when style in @options_encodable do
-    quote do Options.unquote(:"decode_#{style}")(value) end
-  end
-  defp decode_fn(style, context) do
-    quote do unquote(context).unquote(:"decode_#{style}")(value) end
-  end
-
-  @spec at_form(atom) :: Macro.t
-  def at_form(name) do
-    {:@, [context: Elixir, import: Kernel], [{name, [context: Elixir], Elixir}]}
-  end
-
-  @spec encode_atom({atom, atom}, module) :: Macro.t
-  def encode_atom({name, style}, context) do
-    at_form = at_form(name)
-    quote do
-      def encode({unquote(name), value}), do: unquote(encode_fn(at_form, style, context))
-    end
-  end
-
-  @spec encode_atval({atom, atom}, module) :: Macro.t
-  def encode_atval({name, style}, context) do
-    at_form = at_form(name)
-    quote do
-      def encode({unquote(at_form), binary}) when is_binary(binary) do
-        <<unquote(at_form), :erlang.size(binary)>> <> binary
-      end
-      def encode({unquote(at_form), value}), do: unquote(encode_fn(at_form, style, context))
-    end
-  end
-
-  @spec decode({atom, atom}, module) :: Macro.t
-  def decode({name, style}, context) do
-    at_form = at_form(name)
-    quote do
-      def decode({unquote(at_form), value}), do: {unquote(name), unquote(decode_fn(style, context))}
-    end
-  end
-
-  defmacro options(options_list) do
-    context = __CALLER__.module
-    atom_encoder = Enum.map(options_list, &encode_atom(&1, context))
-    atval_encoder = Enum.map(options_list, &encode_atval(&1, context))
-    decoder = Enum.map(options_list, &decode(&1, context))
-    quote do
-      alias ExDhcp.Options
-
-      @spec encode({atom, term})               :: {atom, term} | binary
-      @spec encode({Options.typecode, binary}) :: {Options.typecode, binary}
-      unquote_splicing(atom_encoder)
-      unquote_splicing(atval_encoder)
-      def encode(any), do: any
-
-      @spec decode({Options.typecode, binary}) :: {atom, term} | {Options.typecode, binary}
-      @spec decode({atom, term})               :: {atom, term}
-      unquote_splicing(decoder)
-      def decode(any), do: any
-    end
-  end
 end

@@ -11,25 +11,25 @@ defmodule DhcpTest.Behaviour.HandleCastTest do
     defmodule BasicCast do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
+      CommonDhcp.setup
 
       @impl true
-      def handle_cast(any, pid) do
-        send(pid, {:recv, any})
-        {:noreply, pid}
+      def handle_cast(any, test_pid) do
+        send(test_pid, {:recv, any})
+        {:noreply, test_pid}
       end
     end
 
     test "handle_cast is called" do
-      {:ok, pid} = BasicCast.start_link()
-      GenServer.cast(pid, :bar)
+      conn = BasicCast.connect()
+      GenServer.cast(conn.server, :bar)
       assert_receive {:recv, :bar}
     end
 
     defmodule ChgCast do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
+      CommonDhcp.setup
 
       @impl true
       def handle_cast({:chg, from, new_state}, old_state) do
@@ -39,10 +39,10 @@ defmodule DhcpTest.Behaviour.HandleCastTest do
     end
 
     test "changes to the state are respected" do
-      {:ok, pid} = ChgCast.start_link()
-      GenServer.cast(pid, {:chg, self(), :foo})
+      conn = ChgCast.connect()
+      GenServer.cast(conn.server, {:chg, self(), :foo})
       assert_receive {:was, _}
-      GenServer.cast(pid, {:chg, self(), :bar})
+      GenServer.cast(conn.server, {:chg, self(), :bar})
       assert_receive {:was, :foo}
     end
 

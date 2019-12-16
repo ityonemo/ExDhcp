@@ -17,7 +17,7 @@ defmodule DhcpTest.Behaviour.HandleReleaseTest do
   defmodule RelSrvNoRespond do
     alias DhcpTest.Behaviour.CommonDhcp
     require CommonDhcp
-    CommonDhcp.with_port(6742)
+    CommonDhcp.setup
 
     def handle_release(pack, xid, chaddr, test_pid) do
       send(test_pid, {:release, xid, pack, chaddr})
@@ -26,10 +26,9 @@ defmodule DhcpTest.Behaviour.HandleReleaseTest do
   end
 
   test "a dhcp release message gets sent to handle_release" do
-    RelSrvNoRespond.start_link(self(), port: 6742)
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    rel_pack = Packet.encode(@dhcp_release)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6742, rel_pack)
+    conn = RelSrvNoRespond.connect()
+    RelSrvNoRespond.send_packet(conn, @dhcp_release)
+
     assert_receive {:release, xid, pack, chaddr}
     assert pack == @dhcp_release
     assert xid == @dhcp_release.xid
@@ -39,7 +38,7 @@ defmodule DhcpTest.Behaviour.HandleReleaseTest do
   defmodule RelParserlessSrv do
     alias DhcpTest.Behaviour.CommonDhcp
     require CommonDhcp
-    CommonDhcp.with_port(6743, dhcp_options: [])
+    CommonDhcp.setup dhcp_options: []
 
     def handle_release(pack, xid, chaddr, test_pid) do
       send(test_pid, {:release, pack, xid, chaddr})
@@ -48,10 +47,9 @@ defmodule DhcpTest.Behaviour.HandleReleaseTest do
   end
 
   test "dhcp will respond to release without options parsers" do
-    RelParserlessSrv.start_link()
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    disc_pack = Packet.encode(@dhcp_release)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6743, disc_pack)
+    conn = RelParserlessSrv.connect()
+    RelParserlessSrv.send_packet(conn, @dhcp_release)
+
     assert_receive {:release, pack, xid, chaddr}
     # make sure that the inner contents are truly unencoded.
     assert %{53 => <<7>>} == pack.options
@@ -62,17 +60,16 @@ defmodule DhcpTest.Behaviour.HandleReleaseTest do
   defmodule RelNoSrv do
     alias DhcpTest.Behaviour.CommonDhcp
     require CommonDhcp
-    CommonDhcp.with_port(6744)
+    CommonDhcp.setup
   end
 
   test "not implementing release is just a-ok" do
-    {:ok, srv} = RelNoSrv.start_link()
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    disc_pack = Packet.encode(@dhcp_release)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6744, disc_pack)
+    conn = RelNoSrv.connect()
+    RelNoSrv.send_packet(conn, @dhcp_release)
+
     # make sure that the inner contents are truly unencoded.
     Process.sleep(100)
-    Process.alive?(srv)
+    Process.alive?(conn.server)
   end
 
 end

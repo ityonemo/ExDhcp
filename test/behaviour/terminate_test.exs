@@ -11,7 +11,7 @@ defmodule DhcpTest.Behaviour.TerminateTest do
     defmodule Term do
       alias DhcpTest.Behaviour.CommonDhcp
       require CommonDhcp
-      CommonDhcp.with_port(0)
+      CommonDhcp.setup
 
       @impl true
       def handle_info(:end_it, pid) do
@@ -26,8 +26,8 @@ defmodule DhcpTest.Behaviour.TerminateTest do
     end
 
     test "we can trap the termination event without bleeding state" do
-      {:ok, pid} = Term.start_link()
-      send(pid, :end_it)
+      conn = Term.connect()
+      send(conn.server, :end_it)
       assert_receive {:dying, :normal}
     end
   end

@@ -18,11 +18,11 @@ defmodule DhcpTest.Behaviour.HandleRequestTest do
   }
 
   defmodule ReqSrvNoRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
-    def handle_decline(_, _, _, _), do: :error
+    CommonDhcp.setup
+
     def handle_request(pack, xid, chaddr, test_pid) do
       send(test_pid, {:request, xid, pack, chaddr})
       {:norespond, :new_state}
@@ -30,10 +30,9 @@ defmodule DhcpTest.Behaviour.HandleRequestTest do
   end
 
   test "a dhcp request message gets sent to handle_request" do
-    ReqSrvNoRespond.start_link(self(), port: 6752)
-    {:ok, sock} = :gen_udp.open(0, [:binary])
-    disc_pack = Packet.encode(@dhcp_request)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6752, disc_pack)
+    conn = ReqSrvNoRespond.connect()
+    ReqSrvNoRespond.send_packet(conn, @dhcp_request)
+
     assert_receive {:request, xid, pack, chaddr}
     assert pack == @dhcp_request
     assert xid == @dhcp_request.xid
@@ -41,35 +40,30 @@ defmodule DhcpTest.Behaviour.HandleRequestTest do
   end
 
   defmodule ReqSrvRespond do
-    use ExDhcp
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
-    def handle_decline(_, _, _, _), do: :error
+    CommonDhcp.setup
+
     def handle_request(pack, _, _, _) do
       # for simplicity, just send back the same packet.
       {:respond, pack, :new_state}
     end
   end
 
-  @localhost {127, 0, 0, 1}
   test "a dhcp request message can respond to the caller" do
-    ReqSrvRespond.start_link(self(), port: 6753, client_port: 6754, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6754, [:binary, active: true])
-
-    disc_pack = Packet.encode(@dhcp_request)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6753, disc_pack)
+    conn = ReqSrvRespond.connect()
+    ReqSrvRespond.send_packet(conn, @dhcp_request)
 
     assert_receive {:udp, _, _, _, binary}
     assert @dhcp_request == Packet.decode(binary)
   end
 
   defmodule ReqParserlessSrv do
-    use ExDhcp, dhcp_options: []
+    alias DhcpTest.Behaviour.CommonDhcp
+    require CommonDhcp
+    CommonDhcp.setup dhcp_options: []
 
-    def init(test_pid), do: {:ok, test_pid}
-    def handle_discover(_, _, _, _), do: :error
-    def handle_decline(_, _, _, _), do: :error
     def handle_request(pack, xid, chaddr, test_pid) do
       send(test_pid, {:request, pack, xid, chaddr})
       {:respond, pack, :new_state}
@@ -77,10 +71,9 @@ defmodule DhcpTest.Behaviour.HandleRequestTest do
   end
 
   test "dhcp will respond to request without options parsers" do
-    ReqParserlessSrv.start_link(self(), port: 6755, client_port: 6756, broadcast_addr: @localhost)
-    {:ok, sock} = :gen_udp.open(6756, [:binary, active: true])
-    disc_pack = Packet.encode(@dhcp_request)
-    :gen_udp.send(sock, {127, 0, 0, 1}, 6755, disc_pack)
+    conn = ReqParserlessSrv.connect()
+    ReqParserlessSrv.send_packet(conn, @dhcp_request)
+
     assert_receive {:request, pack, xid, chaddr}
     # make sure that the inner contents are truly unencoded.
     assert %{50 => <<192, 168, 1, 100>>, 53 => <<3>>, 54 => <<192, 168, 1, 1>>}

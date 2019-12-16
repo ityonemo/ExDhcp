@@ -1,5 +1,0 @@
-<network>
-	<name>dhcptest-net</name>
-	<bridge name="dhcptest0"/>
-	<forward mode="bridge"/>
-</network>
