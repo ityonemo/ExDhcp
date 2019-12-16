@@ -106,6 +106,15 @@ iptables -t nat -A POSTROUTING -p udp --sport 6767 -j SNAT --to <server ip addre
 ```
 _NB: If you're using a port besides *6767*, be sure to replace it with your chosen port._
 
+You can also do the following (as superuser):
+```bash
+setcap 'cap_net_bind_service=+ep' /usr/lib/erlang/erts-10.5.6/bin/beam.smp
+```
+
+note that if you do this, the entire erlang VM will obtain low IP capability, 
+(including any malicious actors that might get an IEX shell into your machine).
+For that reason it's not recommended as a solution.
+
 On some Linux Distributions (we see this on **Ubuntu 18.04**), the `conntrack`
 netfilter will be enabled by default, which will cause the server to throttle 
 outgoing broadcast UDP packets, and this could adversely affect the success of 
