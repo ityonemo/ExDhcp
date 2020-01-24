@@ -121,6 +121,12 @@ defmodule ExDhcp do
 
   These operate identically to their counterparts in `GenServer`, but note that they are passed
   their encapsulated state, not the raw state of the GenServer.
+
+  ### For Testing
+
+  ExDhcp will instrument inside of your module the `b:port/1` call which will
+  return the UDP port that your DHCP server is listening to, this is useful
+  when you are running async tests and you assign your initial port to 0.
   """
 
   use GenServer
@@ -149,6 +155,9 @@ defmodule ExDhcp do
 
         Supervisor.child_spec(default, unquote(Macro.escape(mod_opts)))
       end
+
+      @spec port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
+      def port(srv), do: ExDhcp.port(srv)
 
       defoverridable child_spec: 1
 
@@ -252,6 +261,15 @@ defmodule ExDhcp do
       function_exported?(module, :init, 1) -> module.init(initializer)
       true -> throw("init/1 and init/2 are missing from #{module} definition")
     end
+  end
+
+  #######################################################################
+  ## API
+
+  @spec port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
+  def port(srv), do: GenServer.call(srv, :"$port")
+  defp port_impl(state) do
+    {:reply, :inet.port(state.socket), state}
   end
 
   #######################################################################
@@ -529,6 +547,7 @@ defmodule ExDhcp do
     | {:stop, reason::term, new_state::term}
 
   @impl true
+  def handle_call(:"$port", _from, state), do: port_impl(state)
   def handle_call(request, from, state = %{module: module}) do
     if function_exported?(module, :handle_call, 3) do
       case module.handle_call(request, from, state.state) do
@@ -607,6 +626,9 @@ defmodule ExDhcp do
       module.terminate(reason, state.state)
     end
   end
+
+  @doc "returns the UDP port that the DHCP server listens to"
+  @callback port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
 
   @optional_callbacks handle_inform: 4, handle_release: 4, handle_packet: 4,
                       handle_call: 3, handle_cast: 2, handle_info: 2,

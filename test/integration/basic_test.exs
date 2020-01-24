@@ -16,7 +16,7 @@ defmodule DhcpTest.BasicTest do
 
       {:ok, srv} = BasicDhcp.start_link(%{}, port: 0,
         client_port: client_port, broadcast_addr: @localhost)
-      {:ok, srv_port} = srv |> BasicDhcp.info |> :inet.port
+      {:ok, srv_port} = BasicDhcp.port(srv)
 
       # send a discover
       dsc_pack = Packet.encode(BasicDhcp.discover())

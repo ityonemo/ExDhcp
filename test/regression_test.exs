@@ -106,7 +106,7 @@ defmodule ExDhcpTest.RegressionTest do
     {:ok, client_port} = :inet.port(sock)
 
     {:ok, srv} = DualParser.start_link(self(), port: 0, client_port: client_port, broadcast_addr: @localhost)
-    {:ok, srv_port} = srv |> DualParser.socket |> :inet.port
+    {:ok, srv_port} = DualParser.port(srv)
 
     disc_pack = Packet.encode(@dhcp_discover)
     :gen_udp.send(sock, @localhost, srv_port, disc_pack)
@@ -160,7 +160,7 @@ defmodule ExDhcpTest.RegressionTest do
     {:ok, client_port} = :inet.port(sock)
 
     {:ok, srv} = NilParser.start_link(self(), port: 0, client_port: client_port, broadcast_addr: @localhost)
-    {:ok, srv_port} = srv |> NilParser.socket |> :inet.port
+    {:ok, srv_port} = NilParser.port(srv)
 
     disc_pack = Packet.encode(@dhcp_discover)
     :gen_udp.send(sock, @localhost, srv_port, disc_pack)

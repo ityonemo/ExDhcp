@@ -29,7 +29,7 @@ defmodule ExDhcpTest.OtpTest do
     # retrieve the pid
     dhcp = Process.whereis(:test_dhcp)
     # retreive the port number
-    {:ok, srv_port} = dhcp |> BasicDhcp.info |> :inet.port
+    {:ok, srv_port} = BasicDhcp.port(:test_dhcp)
 
     # send a discover
     dsc_pack = Packet.encode(BasicDhcp.discover())
@@ -50,7 +50,7 @@ defmodule ExDhcpTest.OtpTest do
     # re-retrieve the pid
     dhcp = assert Process.whereis(:test_dhcp)
     # retreive the port number
-    {:ok, srv_port} = dhcp |> BasicDhcp.info |> :inet.port
+    {:ok, srv_port} = BasicDhcp.port(:test_dhcp)
 
     # send a request
     req_pack = Packet.encode(BasicDhcp.request())
