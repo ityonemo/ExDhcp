@@ -9,7 +9,6 @@ defmodule DhcpTest.BasicTest do
   @localhost {127, 0, 0, 1}
 
   describe "performs a full cycle" do
-    @tag :one
     test "successfully" do
 
       {:ok, sock} = :gen_udp.open(0, [:binary, active: true])
