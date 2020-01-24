@@ -11,7 +11,7 @@ defmodule ExDhcp.MixProject do
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [coveralls: :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
-      source_url: "https://github.com/RstorLabs/ex_dhcp",
+      source_url: "https://github.com/ityonemo/ex_dhcp",
       package: package(),
       docs: [main: "ExDhcp", extras: ["README.md"]]
     ]
@@ -24,7 +24,7 @@ defmodule ExDhcp.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/RstorLabs/ex_dhcp"}
+      links: %{"GitHub" => "https://github.com/ityonemo/ex_dhcp"}
     ]
   end
 
