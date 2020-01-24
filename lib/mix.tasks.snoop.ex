@@ -16,9 +16,34 @@ defmodule Mix.Tasks.Snoop do
   mix snoop
   ```
 
+  Defaults to listening to UDP ports 67 and 68.  In order to use this feature
+  on most Linux machines, you'll need give your erlang virtual machine
+  permission to listen on (< 1024) port numbers.  You can do this with the
+  following command as superuser:
+
+  ```bash
+  setcap 'cap_net_bind_service,cap_net_raw=+ep' /usr/lib/erlang/erts-10.6.1/bin/beam.smp
+  ```
+
+  Note that the path to your `beam.smp` might be different.
+
   `Ctrl-c` will exit out of this mix task
 
-  You'll probably want to set the following `iptables` settings before running:
+  ### Using without `setcap`
+
+  You can use this program without changing the permissions on `beam.smp`.
+  Instead, supply the `--port` or `-p` parameter to the mix task, like so:
+
+  ```bash
+  mix snoop -p 6767
+  ```
+
+  And you'll want to forward UDP port activity from 67 and 68 to
+  the snoop port 6767, you may use `iptables` as superuser to achieve this.
+  Note that these changes may not persist on certain network activity
+  (such as (libvirt)[https://libvirt.org/] creating or destroying a network),
+  and certainly not on reboot.  Instrumenting these settings as permanent is
+  beyond the scope of this guide.
 
   ```bash
   iptables -t nat -I PREROUTING -p udp --dport 67 -j DNAT --to :6767
@@ -98,8 +123,25 @@ defmodule Mix.Tasks.Snoop do
   end
 
   @doc false
-  def run(_) do
-    DhcpSnooper.start_link(:ok)
+  def run(params) do
+    params = parse_params(params)
+
+    case params.port do
+      [] -> DhcpSnooper.start_link(:ok, port: [67, 68])
+      lst -> DhcpSnooper.start_link(lst)
+    end
+
     receive do after :infinity -> :ok end
   end
+
+  @port ["--port", "-p"]
+
+  defp parse_params(lst, params \\ %{port: []})
+  defp parse_params([], params), do: params
+  defp parse_params([switch, n | rest], params) when switch in @port do
+    port = String.to_integer(n)
+    parse_params(rest, %{params | port: [port | params.port]})
+  end
+  defp parse_params([_ | rest], params), do: parse_params(rest, params)
+
 end
