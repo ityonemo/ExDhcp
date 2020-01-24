@@ -218,6 +218,17 @@ defmodule ExDhcp do
       gen_server_opts)
   end
 
+  @doc false
+  def start(module, initializer, options \\ []) do
+
+    {internal_opts, gen_server_opts} = Keyword.split(options, @internal_opts)
+
+    GenServer.start(
+      __MODULE__,
+      {module, initializer, internal_opts},
+      gen_server_opts)
+  end
+
   @typedoc false
   @type state :: %{
     module: module,
