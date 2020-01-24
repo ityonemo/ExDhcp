@@ -4,7 +4,7 @@ defmodule ExDhcpTest.OtpTest do
 
   test "a supervised trivial has a dynamic_supervisor" do
     children = [
-      {ExDhcp, {TrivialStub, "foo", port: 0, name: :sup_test, trivial_name: Foo}}]
+      {ExDhcp, {TrivialStub, "foo", port: 0, name: :dhcp_test}}]
 
     Supervisor.start_link(
       children, strategy: :one_for_one)

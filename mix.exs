@@ -7,6 +7,7 @@ defmodule ExDhcp.MixProject do
       version: "0.1.3",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       description: description(),
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -46,4 +47,8 @@ defmodule ExDhcp.MixProject do
       {:excoveralls, "~> 0.11.1", only: :test}
     ]
   end
+
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end
