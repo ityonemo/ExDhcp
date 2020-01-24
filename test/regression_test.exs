@@ -82,11 +82,6 @@ defmodule ExDhcpTest.RegressionTest do
 
     @impl true
     def handle_decline(_, _, _, _), do: {:norespond, :pumpkin}
-
-    @impl true
-    def handle_call(:socket, _from, socket), do: {:reply, socket, socket}
-
-    def socket(srv), do: GenServer.call(srv, :socket)
   end
 
   #
@@ -142,11 +137,6 @@ defmodule ExDhcpTest.RegressionTest do
     def handle_request(_, _, _, _), do: {:norespond, :pumpkin}
     @impl true
     def handle_decline(_, _, _, _), do: {:norespond, :pumpkin}
-
-    @impl true
-    def handle_call(:socket, _from, socket), do: {:reply, socket, socket}
-
-    def socket(srv), do: GenServer.call(srv, :socket)
   end
 
   @dhcp_discover %Packet{
