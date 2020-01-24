@@ -27,4 +27,4 @@
 
 ### 0.1.4
 
-- fix how we do OTP things
+- testing and refactoring OTP compliance
