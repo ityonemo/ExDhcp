@@ -6,7 +6,6 @@ defmodule ExDhcpTest.OtpTest do
 
   @localhost {127, 0, 0, 1}
 
-  @tag :one
   test "a supervised trivial has a dynamic_supervisor" do
 
     # create a client
@@ -48,7 +47,7 @@ defmodule ExDhcpTest.OtpTest do
     # the DHCP server is rezzed by the supervisor.
 
     # re-retrieve the pid
-    dhcp = assert Process.whereis(:test_dhcp)
+    assert Process.whereis(:test_dhcp)
     # retreive the port number
     {:ok, srv_port} = BasicDhcp.port(:test_dhcp)
 
