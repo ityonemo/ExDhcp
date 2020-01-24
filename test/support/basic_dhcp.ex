@@ -1,7 +1,21 @@
 defmodule BasicDhcp do
   use ExDhcp
-
   alias ExDhcp.Packet
+
+  # override child_spec for supervision testing
+
+  def child_spec({arg, opts}) do
+    default = %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg, opts]}
+    }
+
+    Supervisor.child_spec(default, [])
+  end
+
+  def start_link(init, options \\ []) do
+    ExDhcp.start_link(__MODULE__, init, options)
+  end
 
   @impl true
   def init(_, socket), do: {:ok, socket}

@@ -59,6 +59,10 @@ defmodule ExDhcpTest.RegressionTest do
 
     @testhost {192, 168, 0, 1}
 
+    def start_link(iv, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, iv, opts)
+    end
+
     @impl true
     def init(_, socket), do: {:ok, socket}
 
@@ -115,6 +119,10 @@ defmodule ExDhcpTest.RegressionTest do
     use ExDhcp
 
     @localhost {127, 0, 0, 1}
+
+    def start_link(iv, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, iv, opts)
+    end
 
     @impl true
     def init(_, socket), do: {:ok, socket}

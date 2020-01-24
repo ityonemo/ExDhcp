@@ -2,6 +2,10 @@ defmodule ExDhcpTest.OtpTest do
   # module for making sure that we are otp-compliant.
   use ExUnit.Case, async: true
 
+  alias ExDhcp.Packet
+
+  @localhost {127, 0, 0, 1}
+
   @tag :one
   test "a supervised trivial has a dynamic_supervisor" do
 
@@ -38,6 +42,15 @@ defmodule ExDhcpTest.OtpTest do
     # kill the dhcp server.
     Process.exit(dhcp, :kill)
     Process.sleep(20)
+
+    # because we're restarting the dhcp server, and we initialized
+    # it with "port 0", we expect it to rebind to a new port when
+    # the DHCP server is rezzed by the supervisor.
+
+    # re-retrieve the pid
+    dhcp = assert Process.whereis(:test_dhcp)
+    # retreive the port number
+    {:ok, srv_port} = dhcp |> BasicDhcp.info |> :inet.port
 
     # send a request
     req_pack = Packet.encode(BasicDhcp.request())

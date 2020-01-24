@@ -150,11 +150,7 @@ defmodule ExDhcp do
         Supervisor.child_spec(default, unquote(Macro.escape(mod_opts)))
       end
 
-      def start_link(initial_state, options \\ []) do
-        ExDhcp.start_link(__MODULE__, initial_state, options)
-      end
-
-      defoverridable child_spec: 1, start_link: 2
+      defoverridable child_spec: 1
 
       @doc false
       @spec options_parsers() :: [module]
