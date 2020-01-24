@@ -25,3 +25,6 @@
 - tests now have no hardcoded udp ports.
 - `init/2` now implemented which lets you use the server socket
 
+### 0.1.4
+
+- fix how we do OTP things
