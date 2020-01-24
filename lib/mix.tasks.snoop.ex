@@ -37,6 +37,10 @@ defmodule Mix.Tasks.Snoop do
     use ExDhcp
     require Logger
 
+    def start_link(init, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, init, opts)
+    end
+
     @impl true
     def init(_), do: {:ok, :ok}
 
