@@ -127,8 +127,13 @@ defmodule Mix.Tasks.Snoop do
     params = parse_params(params)
 
     case params.port do
-      [] -> DhcpSnooper.start_link(:ok, port: [67, 68])
-      lst -> DhcpSnooper.start_link(lst)
+      [] ->
+        DhcpSnooper.start_link(:ok, port: 67)
+        DhcpSnooper.start_link(:ok, port: 68)
+      lst ->
+        Enum.map(lst, fn port ->
+          DhcpSnooper.start_link(:ok, port: port)
+        end)
     end
 
     receive do after :infinity -> :ok end

@@ -14,7 +14,7 @@ defmodule ExDhcp.MixProject do
       preferred_cli_env: [coveralls: :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
       source_url: "https://github.com/ityonemo/ex_dhcp",
       package: package(),
-      docs: [main: "ExDhcp", extras: ["README.md"]]
+      docs: docs()
     ]
   end
 
@@ -48,7 +48,17 @@ defmodule ExDhcp.MixProject do
     ]
   end
 
-
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp docs() do
+    [
+      main: "ExDhcp",
+      extra_section: "GUIDES",
+      extras: [
+        "README.md",
+        "pxe_guide.md"],
+      groups_for_extras: ["Guides": "pxe_guide.md"]
+    ]
+  end
 end
