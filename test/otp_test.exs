@@ -60,4 +60,9 @@ defmodule ExDhcpTest.OtpTest do
     assert BasicDhcp.acknowledge() == Packet.decode(resp2)
   end
 
+  test "double supervisor test" do
+    ExDhcp.Supervisor.start_link({BasicDhcp, %{}, port: 0, name: :test})
+
+    assert Process.alive?(Process.whereis(:test))
+  end
 end

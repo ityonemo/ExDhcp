@@ -122,6 +122,27 @@ defmodule ExDhcp do
   These operate identically to their counterparts in `GenServer`, but note that they are passed
   their encapsulated state, not the raw state of the GenServer.
 
+  ### Supervising an ExDhcp instance
+
+  The recommended supervision strategy is a single ExDhcp server under the main
+  application.  This can be achieved using the `ExDhcp.Supervisor` helper module.
+
+  ```elixir
+  defmodule MyProject.Application
+
+    def start(_type, _args) do
+
+      initial_value = ...
+      dhcp_opts = ...
+
+      children = [{ExDhcp.Supervisor, {MyModule, initial_value, dhcp_opts}}]
+
+      Supervisor.start_link(children, strategy: :one_for_one)
+    end
+
+  end
+  ```
+
   ### For Testing
 
   ExDhcp will instrument inside of your module the `b:port/1` call which will
