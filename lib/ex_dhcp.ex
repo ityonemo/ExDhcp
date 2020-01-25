@@ -81,6 +81,11 @@ defmodule ExDhcp do
   end
   ```
 
+  if you intend to ignore the particular DHCP packet, instead emit the following
+  return from the callback:
+
+  `{:norespond, state}`
+
   You must implement the following three DHCP functionalities as callbacks to successfully
   assign network hosts:
   - `handle_discover/4`
@@ -121,6 +126,36 @@ defmodule ExDhcp do
 
   These operate identically to their counterparts in `GenServer`, but note that they are passed
   their encapsulated state, not the raw state of the GenServer.
+
+  ### Supervising an ExDhcp instance
+
+  The recommended supervision strategy is a single ExDhcp server under the main
+  application.  This can be achieved using the `ExDhcp.Supervisor` helper module.
+
+  ```elixir
+  defmodule MyProject.Application
+
+    def start(_type, _args) do
+
+      initial_value = ...
+      dhcp_opts = ...
+
+      children = [{ExDhcp.Supervisor, {MyModule, initial_value, dhcp_opts}}]
+
+      Supervisor.start_link(children, strategy: :one_for_one)
+    end
+
+  end
+  ```
+
+  ### For Testing
+
+  ExDhcp will instrument inside of your module the `b:port/1` call which will
+  return the UDP port that your DHCP server is listening to, this is useful
+  when you are running async tests and you assign your initial port to 0.
+
+  **Note** if you are testing supervised, and your dhcp process dies, then the
+  port may be rebound to another number if you set it 0 initially.
   """
 
   use GenServer
@@ -150,11 +185,10 @@ defmodule ExDhcp do
         Supervisor.child_spec(default, unquote(Macro.escape(mod_opts)))
       end
 
-      def start_link(initial_state, options \\ []) do
-        ExDhcp.start_link(__MODULE__, initial_state, options)
-      end
+      @spec port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
+      def port(srv), do: ExDhcp.port(srv)
 
-      defoverridable child_spec: 1, start_link: 2
+      defoverridable child_spec: 1
 
       @doc false
       @spec options_parsers() :: [module]
@@ -213,6 +247,17 @@ defmodule ExDhcp do
       gen_server_opts)
   end
 
+  @doc false
+  def start(module, initializer, options \\ []) do
+
+    {internal_opts, gen_server_opts} = Keyword.split(options, @internal_opts)
+
+    GenServer.start(
+      __MODULE__,
+      {module, initializer, internal_opts},
+      gen_server_opts)
+  end
+
   @typedoc false
   @type state :: %{
     module: module,
@@ -256,6 +301,16 @@ defmodule ExDhcp do
       function_exported?(module, :init, 1) -> module.init(initializer)
       true -> throw("init/1 and init/2 are missing from #{module} definition")
     end
+  end
+
+  #######################################################################
+  ## API
+
+  @spec port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
+  @doc "returns the port that the dhcp server is listening to"
+  def port(srv), do: GenServer.call(srv, :"$port")
+  defp port_impl(state) do
+    {:reply, :inet.port(state.socket), state}
   end
 
   #######################################################################
@@ -533,6 +588,7 @@ defmodule ExDhcp do
     | {:stop, reason::term, new_state::term}
 
   @impl true
+  def handle_call(:"$port", _from, state), do: port_impl(state)
   def handle_call(request, from, state = %{module: module}) do
     if function_exported?(module, :handle_call, 3) do
       case module.handle_call(request, from, state.state) do
@@ -611,6 +667,9 @@ defmodule ExDhcp do
       module.terminate(reason, state.state)
     end
   end
+
+  @doc "returns the UDP port that the DHCP server listens to"
+  @callback port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
 
   @optional_callbacks handle_inform: 4, handle_release: 4, handle_packet: 4,
                       handle_call: 3, handle_cast: 2, handle_info: 2,

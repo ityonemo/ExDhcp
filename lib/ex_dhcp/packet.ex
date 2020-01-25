@@ -212,4 +212,47 @@ defmodule ExDhcp.Packet do
     |> Map.merge(builtins)
     |> Map.put(:options, extras)
   end
+
+  @default_addr {255, 255, 255, 255}
+  @default_port 68
+  @default_dest_port 67
+
+  @doc """
+  For testing and instrumentation purposes.  Allows you to send a particular
+  packet to a DHCP port of your choice.  Usually used to mock a client.
+
+  ### options:
+  - `:addr` - address to send to
+  - `:port` - target port send from *defaults to 68*
+  - `:dest_port` - target port to send to *defaults to 67*
+  - `:modules` - modules to perform packet encoding *defaults to `[ExDhcp.Options.Basic]`*
+  - `:nowait` - should not wait for the response
+  - `:bind_to_device` - binds to a specific device in the tree
+  - `:ip` - use an specific ip address in the request
+  """
+  def send(packet, options \\ []) do
+    addr = options[:addr] || @default_addr
+    port = options[:port] || @default_port
+    dest_port = options[:dest_port] || @default_dest_port
+    modules = options[:modules] || [Basic]
+
+    bind_opts = Keyword.take(options, [:bind_to_device, :ip])
+
+    binary_packet = encode(packet, modules)
+
+    with {:ok, socket} <- :gen_udp.open(port, [:binary, active: true, broadcast: true] ++ bind_opts),
+         :ok <- :gen_udp.send(socket, addr, dest_port, binary_packet) do
+      maybe_wait(options[:nowait], modules)
+    end
+  end
+
+  defp maybe_wait(true, _), do: :ok
+  defp maybe_wait(_, modules) do
+    receive do
+      {:udp, _, _, _, msg =
+        <<_::binary-size(236), @magic_cookie::binary, _::binary>>} ->
+      decode(msg, modules)
+    end
+  end
+
 end

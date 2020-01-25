@@ -59,6 +59,10 @@ defmodule ExDhcpTest.RegressionTest do
 
     @testhost {192, 168, 0, 1}
 
+    def start_link(iv, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, iv, opts)
+    end
+
     @impl true
     def init(_, socket), do: {:ok, socket}
 
@@ -78,11 +82,6 @@ defmodule ExDhcpTest.RegressionTest do
 
     @impl true
     def handle_decline(_, _, _, _), do: {:norespond, :pumpkin}
-
-    @impl true
-    def handle_call(:socket, _from, socket), do: {:reply, socket, socket}
-
-    def socket(srv), do: GenServer.call(srv, :socket)
   end
 
   #
@@ -102,7 +101,7 @@ defmodule ExDhcpTest.RegressionTest do
     {:ok, client_port} = :inet.port(sock)
 
     {:ok, srv} = DualParser.start_link(self(), port: 0, client_port: client_port, broadcast_addr: @localhost)
-    {:ok, srv_port} = srv |> DualParser.socket |> :inet.port
+    {:ok, srv_port} = DualParser.port(srv)
 
     disc_pack = Packet.encode(@dhcp_discover)
     :gen_udp.send(sock, @localhost, srv_port, disc_pack)
@@ -115,6 +114,10 @@ defmodule ExDhcpTest.RegressionTest do
     use ExDhcp
 
     @localhost {127, 0, 0, 1}
+
+    def start_link(iv, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, iv, opts)
+    end
 
     @impl true
     def init(_, socket), do: {:ok, socket}
@@ -134,11 +137,6 @@ defmodule ExDhcpTest.RegressionTest do
     def handle_request(_, _, _, _), do: {:norespond, :pumpkin}
     @impl true
     def handle_decline(_, _, _, _), do: {:norespond, :pumpkin}
-
-    @impl true
-    def handle_call(:socket, _from, socket), do: {:reply, socket, socket}
-
-    def socket(srv), do: GenServer.call(srv, :socket)
   end
 
   @dhcp_discover %Packet{
@@ -152,7 +150,7 @@ defmodule ExDhcpTest.RegressionTest do
     {:ok, client_port} = :inet.port(sock)
 
     {:ok, srv} = NilParser.start_link(self(), port: 0, client_port: client_port, broadcast_addr: @localhost)
-    {:ok, srv_port} = srv |> NilParser.socket |> :inet.port
+    {:ok, srv_port} = NilParser.port(srv)
 
     disc_pack = Packet.encode(@dhcp_discover)
     :gen_udp.send(sock, @localhost, srv_port, disc_pack)

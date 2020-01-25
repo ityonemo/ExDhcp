@@ -25,3 +25,8 @@
 - tests now have no hardcoded udp ports.
 - `init/2` now implemented which lets you use the server socket
 
+### 0.1.4
+
+- testing and refactoring for OTP compliance
+- default `mix snoop` to listen to ports 67 and 68 out of the box.
+- documentation on how to analyze pxe booting
