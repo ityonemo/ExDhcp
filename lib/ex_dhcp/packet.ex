@@ -225,7 +225,7 @@ defmodule ExDhcp.Packet do
   - `:addr` - address to send to
   - `:port` - target port send from *defaults to 68*
   - `:dest_port` - target port to send to *defaults to 67*
-  - `:modules` - modules to perform packet encoding *defaults to `[ExDhcp.Options.Basic]`
+  - `:modules` - modules to perform packet encoding *defaults to `[ExDhcp.Options.Basic]`*
   - `:nowait` - should not wait for the response
   - `:bind_to_device` - binds to a specific device in the tree
   - `:ip` - use an specific ip address in the request
