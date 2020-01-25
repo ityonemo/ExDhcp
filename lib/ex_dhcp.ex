@@ -127,6 +127,9 @@ defmodule ExDhcp do
   ExDhcp will instrument inside of your module the `b:port/1` call which will
   return the UDP port that your DHCP server is listening to, this is useful
   when you are running async tests and you assign your initial port to 0.
+
+  **Note** if you are testing supervised, and your dhcp process dies, then the
+  port may be rebound to another number if you set it 0 initially.
   """
 
   use GenServer
@@ -278,6 +281,7 @@ defmodule ExDhcp do
   ## API
 
   @spec port(GenServer.server) :: {:ok, :inet.port_number} | {:error, any}
+  @doc "returns the port that the dhcp server is listening to"
   def port(srv), do: GenServer.call(srv, :"$port")
   defp port_impl(state) do
     {:reply, :inet.port(state.socket), state}
