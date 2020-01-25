@@ -81,6 +81,11 @@ defmodule ExDhcp do
   end
   ```
 
+  if you intend to ignore the particular DHCP packet, instead emit the following
+  return from the callback:
+
+  `{:norespond, state}`
+
   You must implement the following three DHCP functionalities as callbacks to successfully
   assign network hosts:
   - `handle_discover/4`
