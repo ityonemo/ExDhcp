@@ -154,7 +154,7 @@ The package can be installed by adding `ex_dhcp` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:ex_dhcp, "~> 0.1.3"}
+    {:ex_dhcp, "~> 0.1.5"}
   ]
 end
 ```
