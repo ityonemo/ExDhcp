@@ -51,6 +51,13 @@ defmodule Mix.Tasks.Snoop do
   ```
 
   This will cause DHCP packets streaming to be logged to the console.
+
+  ## Options
+
+  - `--bind <device>` or `-b <device>` binds this mix task to a specific
+    network device.
+  - `--save <prefix>` saves packets (as erlang term binaries) to files
+    with the given prefix
   """
 
   @shortdoc "snoop on DHCP packets as they go by"
@@ -59,54 +66,62 @@ defmodule Mix.Tasks.Snoop do
 
     @moduledoc false
 
+    defstruct [:save]
+
     use ExDhcp
     require Logger
 
-    def start_link(init, opts \\ []) do
-      ExDhcp.start_link(__MODULE__, init, opts)
+    def start_link(_init, opts \\ []) do
+      ExDhcp.start_link(__MODULE__, struct(__MODULE__, opts), opts)
     end
 
     @impl true
-    def init(_), do: {:ok, :ok}
+    def init(config), do: {:ok, config}
 
     @impl true
-    def handle_discover(packet, _, _, :ok) do
-      Logger.info(inspect packet)
-      {:norespond, :ok}
+    def handle_discover(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
     end
 
     @impl true
-    def handle_request(packet, _, _, :ok) do
-      Logger.info(inspect packet)
-      {:norespond, :ok}
+    def handle_request(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
     end
 
     @impl true
-    def handle_decline(packet, _, _, :ok) do
-      Logger.info(inspect packet)
-      {:norespond, :ok}
+    def handle_decline(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
     end
 
     @impl true
-    def handle_inform(packet, _, _, :ok) do
-      Logger.info(inspect packet)
-      {:norespond, :ok}
-    end
-
-     @impl true
-     def handle_release(packet, _, _, :ok) do
-       Logger.info(inspect packet)
-       {:norespond, :ok}
-     end
-
-    @impl true
-    def handle_packet(packet, _, _, :ok) do
-      Logger.info(inspect packet)
-      {:norespond, :ok}
+    def handle_inform(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
     end
 
     @impl true
-    def handle_info({:udp, _, _, _, binary}, :ok) do
+    def handle_release(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
+    end
+
+    @impl true
+    def handle_packet(packet, _, _, state) do
+      saveinfo = save(packet, state)
+      Logger.info(saveinfo <> inspect packet)
+      {:norespond, state}
+    end
+
+    @impl true
+    def handle_info({:udp, _, _, _, binary}, state) do
       unrolled_binary = binary
       |> :erlang.binary_to_list
       |> Enum.chunk_every(16)
@@ -114,11 +129,29 @@ defmodule Mix.Tasks.Snoop do
       |> Enum.join("\n")
 
       Logger.warn("untrapped udp: \n <<#{unrolled_binary}>> ")
-      {:noreply, :ok}
+      {:noreply, state}
     end
-    def handle_info(info, :ok) do
+    def handle_info(info, state) do
       Logger.warn(inspect info)
-      {:noreply, :ok}
+      {:noreply, state}
+    end
+
+    defp save(_, %{save: nil}), do: ""
+    defp save(packet, %{save: prefix}) do
+      last_index = prefix
+      |> Path.expand
+      |> Path.dirname
+      |> File.ls!
+      |> Enum.filter(&String.starts_with?(&1, prefix))
+      |> Enum.map(fn filename ->
+        filename |> Path.basename(".pkt") |> String.split("-") |> List.last |> String.to_integer
+      end)
+      |> Enum.max(fn -> 0 end)
+
+      filename = "#{prefix}-#{last_index + 1}.pkt"
+      File.write!(filename, :erlang.term_to_binary(packet))
+
+      "(saved to #{filename}) "
     end
   end
 
@@ -128,7 +161,7 @@ defmodule Mix.Tasks.Snoop do
 
     case params[:port] do
       [] ->
-        # the default should be start up on both standard DHCP ports
+        # the default should be start up on both standard DHCP port
         DhcpSnooper.start_link(:ok, Keyword.put(params, :port, 67))
         DhcpSnooper.start_link(:ok, Keyword.put(params, :port, 68))
       lst ->
@@ -142,6 +175,7 @@ defmodule Mix.Tasks.Snoop do
 
   @bind ~w(-b --bind)
   @port ~w(-p --port)
+  @save ~w(-s --save)
 
   defp parse_params(lst, params \\ [port: []])
   defp parse_params([], params), do: params
@@ -151,6 +185,9 @@ defmodule Mix.Tasks.Snoop do
   defp parse_params([switch, n | rest], params) when switch in @port do
     port = [String.to_integer(n) | params[:port]]
     parse_params(rest, Keyword.put(params, :port, port))
+  end
+  defp parse_params([switch, file_prefix | rest], params) when switch in @save do
+    parse_params(rest, Keyword.put(params, :save, file_prefix))
   end
   defp parse_params([_ | rest], params), do: parse_params(rest, params)
 
