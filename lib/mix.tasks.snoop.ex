@@ -126,26 +126,31 @@ defmodule Mix.Tasks.Snoop do
   def run(params) do
     params = parse_params(params)
 
-    case params.port do
+    case params[:port] do
       [] ->
-        DhcpSnooper.start_link(:ok, port: 67)
-        DhcpSnooper.start_link(:ok, port: 68)
+        # the default should be start up on both standard DHCP ports
+        DhcpSnooper.start_link(:ok, Keyword.put(params, :port, 67))
+        DhcpSnooper.start_link(:ok, Keyword.put(params, :port, 68))
       lst ->
         Enum.map(lst, fn port ->
-          DhcpSnooper.start_link(:ok, port: port)
+          DhcpSnooper.start_link(:ok, Keyword.put(params, :port, port))
         end)
     end
 
     receive do after :infinity -> :ok end
   end
 
-  @port ["--port", "-p"]
+  @bind ~w(-b --bind)
+  @port ~w(-p --port)
 
-  defp parse_params(lst, params \\ %{port: []})
+  defp parse_params(lst, params \\ [port: []])
   defp parse_params([], params), do: params
+  defp parse_params([switch, dev | rest], params) when switch in @bind do
+    parse_params(rest, Keyword.put(params, :bind_to_device, dev))
+  end
   defp parse_params([switch, n | rest], params) when switch in @port do
-    port = String.to_integer(n)
-    parse_params(rest, %{params | port: [port | params.port]})
+    port = [String.to_integer(n) | params[:port]]
+    parse_params(rest, Keyword.put(params, :port, port))
   end
   defp parse_params([_ | rest], params), do: parse_params(rest, params)
 
