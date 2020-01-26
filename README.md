@@ -4,8 +4,6 @@
 
 _Largely inspired by [one_dhcpd][1]_
 
-<a href="https://travis-ci.com/RstorLabs/ex_dhcp"><img src="https://api.travis-ci.com/RstorLabs/ex_dhcp.svg?branch=master"/></a>
-
 ## General Description
 
 ExDhcp is an instrumentable DHCP GenServer, with an opinionated interface that 
@@ -143,9 +141,9 @@ setcap cap_net_raw=ep /path/to/beam.smp
 
 When implementing a DHCP service, you may want to spy on the requests and responses
 in successful DHCP exchanges.  For that purpose, we provide a *DHCP snooper*.  To
-run this snooper, forward both DHCP ports (67 and 68) to 6767 and run `mix snoop`.
+run this snooper, run `mix snoop`.  Note that you will have to enable low ports.
 This will log `%Packet{}` structs to the console that you may later use to generate
-snapshot tests.
+snapshot tests, especially in conjunction with the `mix dhcp` task.
 
 ## Installation
 
@@ -156,7 +154,7 @@ The package can be installed by adding `ex_dhcp` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:ex_dhcp, "~> 0.1.3"}
+    {:ex_dhcp, "~> 0.1.5"}
   ]
 end
 ```

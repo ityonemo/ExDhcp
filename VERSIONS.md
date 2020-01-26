@@ -30,3 +30,9 @@
 - testing and refactoring for OTP compliance
 - default `mix snoop` to listen to ports 67 and 68 out of the box.
 - documentation on how to analyze pxe booting
+
+### 0.1.5
+
+- added `mix dhcp` task.
+- added file saving capabilities to `mix snoop`.
+- added binding capabilities to `mix snoop`.
