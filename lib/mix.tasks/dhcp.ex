@@ -1,5 +1,7 @@
-defmodule Mix.Tasks.Snoop do
+defmodule Mix.Tasks.Dhcp do
   use Mix.Task
+
+  require Logger
 
   alias ExDhcp.Packet
 
@@ -23,11 +25,11 @@ defmodule Mix.Tasks.Snoop do
 
   @shortdoc "send a saved DHCP packet"
 
-  def run([filename, params]) do
+  def run([filename | params]) do
     params = parse_params(params)
 
     response = filename
-    |> File.read
+    |> File.read!
     |> :erlang.binary_to_term
     |> Packet.send(params)
 
@@ -52,6 +54,7 @@ defmodule Mix.Tasks.Snoop do
   @save ~w(-s --save)
   @nowait "!"
 
+  defp parse_params([]), do: []
   defp parse_params([switch, bind | rest]) when switch in @bind do
     [bind: bind] ++ parse_params(rest)
   end
@@ -61,5 +64,6 @@ defmodule Mix.Tasks.Snoop do
   defp parse_params([@nowait | rest]) do
     [nowait: true] ++ parse_params(rest)
   end
+  defp parse_params([_ | rest]), do: parse_params(rest)
 
 end
