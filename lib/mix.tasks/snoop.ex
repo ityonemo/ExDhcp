@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Snoop do
 
   - `--bind <device>` or `-b <device>` binds this mix task to a specific
     network device.
-  - `--save <prefix>` saves packets (as erlang term binaries) to files
+  - `--save <prefix>` or `-s <prefix>` saves packets (as erlang term binaries) to files
     with the given prefix
   """
 
