@@ -25,7 +25,7 @@ defmodule DhcpTest.Options.MacroTest do
   describe "when passed options codegen parameters" do
     test "encode_atom generates the correct function" do
       assert_code """
-      def(encode({:subnet_mask, value})) do
+      def encode({:subnet_mask, value}) do
         Options.encode_ip(@subnet_mask, value)
       end
       """, OptionsMacro.encode_atom({:subnet_mask, :ip}, __MODULE__)
@@ -33,10 +33,10 @@ defmodule DhcpTest.Options.MacroTest do
 
     test "encode_atval generates the correct function" do
       assert_code """
-      def(encode({@subnet_mask, binary}) when is_binary(binary)) do
+      def encode({@subnet_mask, binary}) when is_binary(binary) do
         <<@subnet_mask, :erlang.size(binary)>> <> binary
       end
-      def(encode({@subnet_mask, value})) do
+      def encode({@subnet_mask, value}) do
         Options.encode_ip(@subnet_mask, value)
       end
       """, OptionsMacro.encode_atval({:subnet_mask, :ip}, __MODULE__)
@@ -44,7 +44,7 @@ defmodule DhcpTest.Options.MacroTest do
 
     test "decode generates the correct function" do
       assert_code """
-      def(decode({@subnet_mask, value})) do
+      def decode({@subnet_mask, value}) do
         {:subnet_mask, Options.decode_ip(value)}
       end
       """, OptionsMacro.decode({:subnet_mask, :ip}, __MODULE__)
@@ -54,7 +54,7 @@ defmodule DhcpTest.Options.MacroTest do
   describe "when passed locally implemented codecs" do
     test "encode_atom generates the correct function" do
       assert_code """
-      def(encode({:local, value})) do
+      def encode({:local, value}) do
         Options.encode_string(@local, DhcpTest.Options.MacroTest.encode_local(value))
       end
       """, OptionsMacro.encode_atom({:local, :local}, __MODULE__)
@@ -62,10 +62,10 @@ defmodule DhcpTest.Options.MacroTest do
 
     test "encode_atval generates the correct function" do
       assert_code """
-      def(encode({@local, binary}) when is_binary(binary)) do
+      def encode({@local, binary}) when is_binary(binary) do
         <<@local, :erlang.size(binary)>> <> binary
       end
-      def(encode({@local, value})) do
+      def encode({@local, value}) do
         Options.encode_string(@local, DhcpTest.Options.MacroTest.encode_local(value))
       end
       """, OptionsMacro.encode_atval({:local, :local}, __MODULE__)
@@ -73,7 +73,7 @@ defmodule DhcpTest.Options.MacroTest do
 
     test "decode generates the correct function" do
       assert_code """
-      def(decode({@local, value})) do
+      def decode({@local, value}) do
         {:local, DhcpTest.Options.MacroTest.decode_local(value)}
       end
       """, OptionsMacro.decode({:local, :local}, __MODULE__)

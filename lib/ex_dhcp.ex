@@ -347,7 +347,7 @@ defmodule ExDhcp do
         {:stop, reason, new_state} -> {:stop, reason, %{state | state: new_state}}
       end
     else
-      Logger.warn("undefined handle_info in #{module}")
+      Logger.warning("undefined handle_info in #{module}")
       {:noreply, state}
     end
   end
@@ -606,7 +606,7 @@ defmodule ExDhcp do
           {:stop, reason, %{state | state: new_state}}
       end
     else
-      Logger.warn("undefined handle_call in #{module}")
+      Logger.warning("undefined handle_call in #{module}")
       {:noreply, state}
     end
   end
@@ -629,7 +629,7 @@ defmodule ExDhcp do
           {:stop, reason, %{state | state: new_state}}
       end
     else
-      Logger.warn("undefined handle_cast in #{module}")
+      Logger.warning("undefined handle_cast in #{module}")
       {:noreply, state}
     end
   end
@@ -652,7 +652,7 @@ defmodule ExDhcp do
           {:stop, reason, %{state | state: new_state}}
       end
     else
-      Logger.warn("undefined handle_continue in #{module}")
+      Logger.warning("undefined handle_continue in #{module}")
       {:noreply, state}
     end
   end

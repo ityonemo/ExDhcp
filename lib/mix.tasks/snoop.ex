@@ -128,11 +128,11 @@ defmodule Mix.Tasks.Snoop do
       |> Enum.map(&Enum.join(&1, ", "))
       |> Enum.join("\n")
 
-      Logger.warn("untrapped udp: \n <<#{unrolled_binary}>> ")
+      Logger.warning("untrapped udp: \n <<#{unrolled_binary}>> ")
       {:noreply, state}
     end
     def handle_info(info, state) do
-      Logger.warn(inspect info)
+      Logger.warning(inspect info)
       {:noreply, state}
     end
 
