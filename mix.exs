@@ -40,11 +40,11 @@ defmodule ExDhcp.MixProject do
   defp deps do
     [
       {:elixir_uuid, "~> 1.2", only: [:test]},
-      {:credo, "~> 1.1", only: [:test, :dev], runtime: false},
-      {:dialyxir, "~> 0.5.1", only: :dev, runtime: false},
-      {:licensir, "~> 0.4.2", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.20.2", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.11.1", only: :test}
+      {:credo, "~> 1.7", only: [:test, :dev], runtime: false},
+      {:dialyxir, "~> 1.4.5", only: :dev, runtime: false},
+      {:licensir, "~> 0.7", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.34.2", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.18.3", only: :test}
     ]
   end
 

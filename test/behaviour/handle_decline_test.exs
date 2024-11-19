@@ -50,7 +50,7 @@ defmodule DhcpTest.Behaviour.HandleDeclineTest do
     conn = DeclSrvRespond.connect()
     DeclSrvRespond.send_packet(conn, @dhcp_decline)
 
-    assert_receive({:udp, _, _, _, binary})
+    assert_receive({:udp, _, _, _, _binary})
   end
 
   defmodule DeclParserlessSrv do
